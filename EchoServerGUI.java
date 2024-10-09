@@ -33,7 +33,7 @@ public class EchoServerGUI extends JFrame {
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setVisible(true);
         this.port = port;
-        startServer();
+        startServer(port);
     }
 
     private void buildGUI() {
@@ -65,7 +65,23 @@ public class EchoServerGUI extends JFrame {
         panel.add(exitButton);
         return panel;
     }
+    public void startServer(int port) {
 
+        try {
+            serverSocket = new ServerSocket(port);
+            printDisplay("서버가 시작되었습니다.");
+
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                EchoServerGUI.ClientHandler clientHandler = new EchoServerGUI.ClientHandler(clientSocket);
+                printDisplay("클라이언트가 연결되었습니다.");
+                // receiveMessages(clientSocket);
+                clientHandler.start();
+            }
+        } catch (IOException e) {
+            printDisplay("서버 오류: " + e.getMessage());
+        }
+    }/*
     private void startServer() {
         Socket clientSocket = null;
         try {
@@ -90,42 +106,7 @@ public class EchoServerGUI extends JFrame {
             }
         }
     }
-
-
-    /*
-        private void receiveMessages(Socket clientSocket) {
-            try (InputStream in = clientSocket.getInputStream()) {
-                int message;
-                while ((message = in.read()) != -1) {  //클라이언트와 연결된 입력 스트림으로부터 더이상읽어들일 것이 없으면
-                    printDisplay("클라이언트 메시지: " + message);
-                }
-                printDisplay("클라이언트가 연결을 종료했습니다.");
-            } catch (IOException e) {
-                printDisplay("메시지 수신 오류: " + e.getMessage());
-            }
-        }*/
-    /*private void receiveMessages(Socket cs) {
-        try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(cs.getInputStream(), "UTF-8"));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(cs.getOutputStream(), "UTF-8"));
-            String message;
-            while ((message = in.readLine()) != null) {
-                printDisplay("클라이언트 메시지" + message);
-                out.write("'"+message+"echo....");
-                out.flush();
-            }
-            printDisplay("연결 종료.");
-        }
-        catch (IOException e) {
-            printDisplay("서버 읽기 오류" + e.getMessage());
-        } finally {
-            try {
-                cs.close();
-            } catch (IOException e) {
-                System.err.println("<서버 닫기 오류> " + e.getMessage());
-            }
-        }
-    }*/
+*/
     private void receiveMessages(Socket cs) {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(cs.getInputStream(), UTF_8));
