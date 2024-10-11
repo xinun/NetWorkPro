@@ -81,32 +81,7 @@ public class EchoServerGUI extends JFrame {
         } catch (IOException e) {
             printDisplay("서버 오류: " + e.getMessage());
         }
-    }/*
-    private void startServer() {
-        Socket clientSocket = null;
-        try {
-            serverSocket = new ServerSocket(port);
-            t_display.append("서버가 시작되었습니다.\n");
-
-            while (true) {
-                clientSocket = serverSocket.accept();
-                t_display.append("클라이언트가 연결되었습니다.\n");
-
-                receiveMessages(clientSocket);
-            }
-        } catch (IOException e) {
-            System.err.println("서버 오류: " + e.getMessage());
-        } finally {
-            try {
-                if (clientSocket != null) {
-                    clientSocket.close();
-                }
-            } catch (IOException e) {
-                System.err.println("서버 닫기 오류: " + e.getMessage());
-            }
-        }
     }
-*/
     private void receiveMessages(Socket cs) {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(cs.getInputStream(), UTF_8));

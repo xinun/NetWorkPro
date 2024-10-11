@@ -1,8 +1,3 @@
-/*
-    학번 : 2091193
-    이름 : 최재영
- */
-
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
@@ -86,7 +81,6 @@ public class CalcClientGUI {
         panel.add(t_result);
         panel.add(calcButton);
 
-        // Event Listeners
         ActionListener listener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -183,9 +177,6 @@ public class CalcClientGUI {
         return panel;
     }
 
-    /*
-     * socket related methods
-     */
     private void sendMessage(CalcExpr msg) {
         try {
             out.writeObject(msg);
