@@ -1,38 +1,19 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class CalcServerGUI extends JFrame {
-    private JTextArea t_display;  // t_display로 변경
+    private JTextArea t_display;
     private JButton exitButton;
     private ServerSocket serverSocket;
-    private int port;
-
-    class ClientHandler extends Thread {
-        private Socket clientSocket;
-
-        public ClientHandler(Socket clientSocket) {
-            this.clientSocket = clientSocket;
-        }
-
-        @Override
-        public void run() {
-            receiveMessages(clientSocket);
-        }
-    }
 
     public CalcServerGUI(int port) {
         buildGUI();
         this.setBounds(100, 200, 400, 400);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setVisible(true);
-        this.port = port;
         startServer(port);
     }
 
@@ -44,96 +25,72 @@ public class CalcServerGUI extends JFrame {
 
     private JPanel createDisplayPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        t_display = new JTextArea();  // t_display로 변경
+        t_display = new JTextArea();
         t_display.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(t_display);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel createControlPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel();
         exitButton = new JButton("종료");
-        exitButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                System.exit(-1);
-            }
-        });
+        exitButton.addActionListener(e -> System.exit(0));
         panel.add(exitButton);
         return panel;
     }
 
     public void startServer(int port) {
-
         try {
             serverSocket = new ServerSocket(port);
-            printDisplay("서버가 시작되었습니다.");
+            printDisplay("서버가 시작되었습니다. 포트: " + port);
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                CalcServerGUI.ClientHandler clientHandler = new CalcServerGUI.ClientHandler(clientSocket);
                 printDisplay("클라이언트가 연결되었습니다.");
-                // receiveMessages(clientSocket);
-                clientHandler.start();
+                new Thread(() -> handleClient(clientSocket)).start();
             }
         } catch (IOException e) {
             printDisplay("서버 오류: " + e.getMessage());
         }
-    }/*
-    private void startServer() {
-        Socket clientSocket = null;
-        try {
-            serverSocket = new ServerSocket(port);
-            t_display.append("서버가 시작되었습니다.\n");
+    }
 
-            while (true) {
-                clientSocket = serverSocket.accept();
-                t_display.append("클라이언트가 연결되었습니다.\n");
+    private void handleClient(Socket clientSocket) {
+        try (ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+             ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())) {
 
-                receiveMessages(clientSocket);
-            }
-        } catch (IOException e) {
-            System.err.println("서버 오류: " + e.getMessage());
-        } finally {
-            try {
-                if (clientSocket != null) {
-                    clientSocket.close();
-                }
-            } catch (IOException e) {
-                System.err.println("서버 닫기 오류: " + e.getMessage());
-            }
+            CalcExpr calcExpr = (CalcExpr) in.readObject();
+            double result = calculateResult(calcExpr);
+
+            out.writeObject(result);
+            out.flush();
+
+            printDisplay("계산 결과: " + result);
+
+        } catch (IOException | ClassNotFoundException e) {
+            printDisplay("클라이언트 처리 중 오류 발생: " + e.getMessage());
         }
     }
-*/
 
-    private void receiveMessages(Socket cs) {
-        try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(cs.getInputStream(), UTF_8));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(cs.getOutputStream(), UTF_8));
-            String message;
-            while ((message = in.readLine()) != null) {
-                printDisplay("클라이언트 메시지: " + message);
-                out.write("'" + message + "' ...echo" + "\n");
-                out.flush();
-            }
-            printDisplay("클라이언트가 연결을 종료했습니다." + "\n");
-        } catch (IOException e) {
-            System.err.println("서버 읽기 오류: " + e.getMessage());
-        } finally {
-            try {
-                cs.close();
-            } catch (IOException e) {
-                System.err.println("서버 닫기 오류: " + e.getMessage());
-            }
+    private double calculateResult(CalcExpr calcExpr) {
+        switch (calcExpr.operator) {
+            case '+':
+                return calcExpr.operand1 + calcExpr.operand2;
+            case '-':
+                return calcExpr.operand1 - calcExpr.operand2;
+            case '*':
+                return calcExpr.operand1 * calcExpr.operand2;
+            case '/':
+                return (calcExpr.operand2 != 0) ? calcExpr.operand1 / calcExpr.operand2 : Double.NaN;
+            default:
+                return Double.NaN;
         }
     }
 
     private void printDisplay(String msg) {
-        t_display.append(msg + "\n");// t_display에 출력
-        t_display.setCaretPosition(t_display.getDocument().getLength()); //자동 스크롤 다운
+        t_display.append(msg + "\n");
+        t_display.setCaretPosition(t_display.getDocument().getLength());
     }
 
     public static void main(String[] args) {
