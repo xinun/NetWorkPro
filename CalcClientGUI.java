@@ -1,196 +1,222 @@
-import javax.swing.*;
-import java.awt.*;
+/*
+    학번 : 2091193
+    이름 : 최재영
+ */
+
+
+import java.awt.BorderLayout;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.Socket;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 
-public class CalcClientGUI extends JFrame {
-    private JTextArea t_display;
-    private JTextField t_input;
-    private JButton b_connect, b_disconnect, b_send, b_exit;
-    private String serverAddress = "localhost";  // 서버 주소 설정
-    private int serverPort = 54321;  // 서버 포트 설정
-    private Socket socket;
-    private Writer out;
-    private Reader in;
+public class CalcClientGUI {
 
-    public CalcClientGUI() {
-        super("ByteClientGUI");
+    private final JFrame frame;
+    private final String serverAddress;
+    private final int serverPort;
+
+    private JButton calcButton;
+
+    private ObjectOutputStream out;
+    private DataInputStream in;
+
+    public CalcClientGUI(String serverAddress, int serverPort) {
+        this.serverAddress = serverAddress;
+        this.serverPort = serverPort;
+
+        frame = new JFrame("CalcClient GUI");
 
         buildGUI();
 
-        this.setBounds(800, 200, 400, 400);
-        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setVisible(true);
-        this.serverAddress = serverAddress;
-        this.serverPort = serverPort;
-        unconncetGUI(); //초기화를 위한 첨부터 실행될때부터 설정하기 위함
-
+        frame.setSize(400, 300);
+        frame.setLocation(500, 300);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
     }
 
+    public static void main(String[] args) {
+        String serverAddress = "localhost";
+        int serverPort = 51111;
+
+        new CalcClientGUI(serverAddress, serverPort);
+    }
+
+    /*
+     * GUI related methods
+     */
     private void buildGUI() {
-        add(createDisplayPanel(), BorderLayout.CENTER);
-
-        JPanel p_pink = new JPanel(new GridLayout(2, 0));
-        p_pink.add(createInputPanel());
-        p_pink.add(createControlPanel());
-        add(p_pink, BorderLayout.SOUTH);
-    }
-
-    private JPanel createDisplayPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-
-        t_display = new JTextArea();
-        t_display.setEditable(false);
-
-        p.add(new JScrollPane(t_display), BorderLayout.CENTER);
-
-        return p;
-    }
-
-
-    private JPanel createInputAndControlPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.add(createInputPanel());
-        panel.add(createControlPanel());
-        return panel;
+        frame.add(createInputPanel(), BorderLayout.NORTH);
+        frame.add(createControlPanel(), BorderLayout.SOUTH);
     }
 
     private JPanel createInputPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        t_input = new JTextField(30);
-        b_send = new JButton("보내기");
+        JPanel panel = new JPanel();
 
-        b_send.addActionListener(new ActionListener() {
+        JTextField t_op1 = new JTextField(5);
+        JTextField t_op2 = new JTextField(5);
+        JLabel equal = new JLabel("=");
+
+        String[] operators = {"+", "-", "*", "/"};
+        JComboBox<String> t_operator = new JComboBox<>(operators);
+
+        JTextField t_result = new JTextField(5);
+        t_result.setEditable(false);
+
+        calcButton = new JButton("계산");
+        calcButton.setEnabled(false);
+
+        panel.add(t_op1);
+        panel.add(t_operator);
+        panel.add(t_op2);
+        panel.add(equal);
+        panel.add(t_result);
+        panel.add(calcButton);
+
+        // Event Listeners
+        ActionListener listener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                sendMessage();
-                receiveMessage();
+                String op1Text = t_op1.getText();
+                String operatorText = t_operator.getSelectedItem().toString();
+                String op2Text = t_op2.getText();
+
+                if (op1Text.isEmpty() || operatorText.isEmpty() || op2Text.isEmpty()) {
+                    return;
+                }
+
+                double op1;
+                try {
+                    op1 = Double.parseDouble(op1Text);
+                } catch (NumberFormatException ex) {
+                    t_op1.setText("");
+                    return;
+                }
+
+                double op2;
+                try {
+                    op2 = Double.parseDouble(op2Text);
+                } catch (NumberFormatException ex) {
+                    t_op2.setText("");
+                    return;
+                }
+
+                char operator = operatorText.charAt(0);
+
+                CalcExpr msg = new CalcExpr(op1, operator, op2);
+                sendMessage(msg);
+
+                double result = receiveMessage();
+                t_result.setText(String.format("%.2f", result));
             }
-        });
-        t_input.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                sendMessage(); // 엔터 입력 메시지 전송
-                receiveMessage();
-            }
-        });
-        panel.add(t_input, BorderLayout.CENTER);
-        panel.add(b_send, BorderLayout.EAST);
-        t_input.setEnabled(false);
-        b_send.setEnabled(false);
+        };
+        calcButton.addActionListener(listener);
+
         return panel;
     }
 
     private JPanel createControlPanel() {
         JPanel panel = new JPanel(new GridLayout(0, 3));
 
-        b_connect = new JButton("접속하기");
-        b_disconnect = new JButton("접속 끊기");
-        b_exit = new JButton("종료하기");
-        b_connect.addActionListener(new ActionListener() {
+        JButton connectButton = new JButton("접속하기");
+        JButton disconnectButton = new JButton("접속 끊기");
+        disconnectButton.setEnabled(false);
+        JButton exitButton = new JButton("종료하기");
+
+        panel.add(connectButton);
+        panel.add(disconnectButton);
+        panel.add(exitButton);
+
+        // Event Listeners
+        connectButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                connectToServer();
+                try {
+                    connectToServer();
+                } catch (IOException ex) {
+                    System.err.println("클라이언트 접속 오류: " + ex.getMessage());
+                    return;
+                }
 
+                calcButton.setEnabled(true);
+                connectButton.setEnabled(false);
+                disconnectButton.setEnabled(true);
+                exitButton.setEnabled(false);
             }
         });
-
-        b_disconnect.addActionListener(new ActionListener() {
+        disconnectButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                disconnect();
+                try {
+                    disconnect();
+                } catch (IOException ex) {
+                    System.err.println("클라이언트 닫기 오류: " + ex.getMessage());
+                    return;
+                }
+
+                calcButton.setEnabled(false);
+                connectButton.setEnabled(true);
+                disconnectButton.setEnabled(false);
+                exitButton.setEnabled(true);
             }
         });
-
-        b_exit.addActionListener(new ActionListener() {
+        exitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.exit(0);
             }
         });
 
-        panel.add(b_connect);
-        panel.add(b_disconnect);
-        panel.add(b_exit);
-
         return panel;
     }
 
-    private void connectToServer() {
+    /*
+     * socket related methods
+     */
+    private void sendMessage(CalcExpr msg) {
         try {
-            socket = new Socket(serverAddress, serverPort);
-            out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"));
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
-            // t_display.append("서버에 접속했습니다.\n");
-            connectGUI();
-        } catch (IOException e) {
-            t_display.append("서버 접속 오류: " + e.getMessage() + "\n");
-        }
-    }
-
-    private void disconnect() {
-        try {
-            if (socket != null && !socket.isClosed()) {
-
-                out.close();
-                socket.close();
-                t_display.append("서버와의 연결을 끊었습니다.\n");
-                unconncetGUI();
-
-            }
-        } catch (IOException e) {
-            t_display.append("연결 종료 오류: " + e.getMessage() + "\n");
-        }
-    }
-
-    private void sendMessage() {
-        String message = t_input.getText();
-        if (message.isEmpty()) return;
-        try {
-            ((BufferedWriter) out).write(message + "\n");
+            out.writeObject(msg);
             out.flush();
-            t_display.append("나: " + message + "\n");
         } catch (IOException e) {
-            System.err.println("error" + e.getMessage());
+            System.err.println("메시지 전송 오류: " + e.getMessage());
         }
-        t_input.setText("");
     }
 
-    private void printDisplay(String msg) {
-        t_display.append(msg);
-        t_display.setCaretPosition(t_display.getDocument().getLength());
-    }
-
-    private void receiveMessage() {
+    private double receiveMessage() {
+        double result = 0;
         try {
-            String inMsg = ((BufferedReader) in).readLine();
-            printDisplay("서버:\t" + inMsg + "\n");
+            result = in.readDouble();
         } catch (IOException e) {
-            System.err.println("error" + e.getMessage());
+            System.err.println("메시지 수신 오류: " + e.getMessage());
         }
+        return result;
     }
 
-    private void unconncetGUI() {  //접속하기 종료하기만 클릭 가능
-        b_connect.setEnabled(true);
-        b_exit.setEnabled(true);
-        b_disconnect.setEnabled(false);
-        b_send.setEnabled(false);
-        t_input.setEnabled(false);
+    private void connectToServer() throws IOException {
+        Socket socket = new Socket(serverAddress, serverPort);
+        OutputStream os = socket.getOutputStream();
+        InputStream is = socket.getInputStream();
+
+        out = new ObjectOutputStream(new BufferedOutputStream(os));
+        in = new DataInputStream(new BufferedInputStream(is));
     }
 
-    private void connectGUI() {  //
-        b_connect.setEnabled(false);
-        b_exit.setEnabled(false);
-        b_disconnect.setEnabled(true);
-        b_send.setEnabled(true);
-        t_input.setEnabled(true);
-    }
-
-    public static void main(String[] args) {
-        new CalcClientGUI();
-
+    private void disconnect() throws IOException {
+        sendMessage(null);
+        out.close();
+        in.close();
     }
 }
