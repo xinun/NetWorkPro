@@ -89,7 +89,7 @@ public class EchoServerGUI extends JFrame {
             String message;
             while ((message = in.readLine()) != null) {
                 printDisplay("클라이언트 메시지: " + message);
-                out.write("'" + message + "' ...echo" + "\n");
+                out.write("!!" + message + "' ...echo" + "\n");
                 out.flush();
             }
             printDisplay("클라이언트가 연결을 종료했습니다." + "\n");
