@@ -1,3 +1,7 @@
+//1971068 전지훈
+
+
+
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
@@ -7,7 +11,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
-import javax.swing.ImageIcon;
 
 public class WithTalk extends JFrame {
     private String serverAddress;

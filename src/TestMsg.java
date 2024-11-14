@@ -1,4 +1,3 @@
-import java.io.Serial;
 import java.io.Serializable;
 
 public class TestMsg implements Serializable {

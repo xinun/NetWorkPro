@@ -1,3 +1,6 @@
+//1971068 전지훈
+
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
