@@ -145,7 +145,7 @@ public class WithTalk extends JFrame {
         t_portNum = new JTextField(5);
         t_userID.setText("guest" + getLocalAddr().split("\\.")[3]);
         t_hostAddr.setText(this.serverAddress);
-        t_hostAddr.setText(String.valueOf(this.serverPort));
+        t_portNum.setText(String.valueOf(this.serverPort));
         t_portNum.setHorizontalAlignment(JTextField.CENTER);
         p.add(new JLabel("아이디:"));
         p.add(t_userID);
